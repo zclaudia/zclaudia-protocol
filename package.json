@@ -1,0 +1,48 @@
+{
+  "name": "@zclaudia/protocol",
+  "version": "0.1.0",
+  "description": "Shared gateway protocol and notification wire types for ZClaudia.",
+  "license": "MIT",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "sideEffects": false,
+  "packageManager": "pnpm@9.15.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/zclaudia/zclaudia-protocol.git"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    },
+    "./gateway": {
+      "import": "./dist/gateway.js",
+      "types": "./dist/gateway.d.ts"
+    },
+    "./notifications": {
+      "import": "./dist/notifications.js",
+      "types": "./dist/notifications.d.ts"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "clean": "rm -rf dist",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.0",
+    "vitest": "^4.0.18"
+  }
+}

@@ -1,7 +1,7 @@
 {
   "name": "@zclaudia/protocol",
-  "version": "0.1.0",
-  "description": "Shared gateway protocol and notification wire types for ZClaudia.",
+  "version": "0.2.0",
+  "description": "Shared protocol contracts for ZClaudia and neutral gateway integrations.",
   "license": "MIT",
   "type": "module",
   "main": "./dist/index.js",
@@ -25,9 +25,21 @@
       "import": "./dist/index.js",
       "types": "./dist/index.d.ts"
     },
+    "./core": {
+      "import": "./dist/core.js",
+      "types": "./dist/core.d.ts"
+    },
     "./gateway": {
       "import": "./dist/gateway.js",
       "types": "./dist/gateway.d.ts"
+    },
+    "./agent": {
+      "import": "./dist/agent.js",
+      "types": "./dist/agent.d.ts"
+    },
+    "./zclaudia": {
+      "import": "./dist/zclaudia.js",
+      "types": "./dist/zclaudia.d.ts"
     },
     "./notifications": {
       "import": "./dist/notifications.js",

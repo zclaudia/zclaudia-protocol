@@ -1,12 +1,18 @@
-// Push notification protocol and configuration shared by gateway clients.
+import type { NotificationSeverity, OpaquePayload } from './core.js';
 
-export interface NotificationEventPreferences {
-  permissionRequest: boolean;
-  promptRequest: boolean;
-  runCompleted: boolean;
-  runFailed: boolean;
-  backgroundPermission: boolean;
-  processLeak: boolean;
+// Generic push notification protocol and configuration shared by gateway clients.
+
+export type { NotificationSeverity } from './core.js';
+
+export interface GatewayNotificationEvent {
+  name: string;
+  category?: string;
+  severity?: NotificationSeverity;
+  title: string;
+  body: string;
+  tags?: string[];
+  clickUrl?: string;
+  metadata?: Record<string, OpaquePayload>;
 }
 
 export type NotificationAuthMode = 'none' | 'bearer' | 'basic';
@@ -20,7 +26,9 @@ export interface NotificationConfig {
   ntfySubscribeToken: string;
   ntfyUsername: string;
   ntfyPassword: string;
-  events: NotificationEventPreferences;
+  eventAllowlist: string[];
+  eventDenylist: string[];
+  minSeverity?: NotificationSeverity;
 }
 
 export const DEFAULT_NOTIFICATION_CONFIG: NotificationConfig = {
@@ -32,12 +40,6 @@ export const DEFAULT_NOTIFICATION_CONFIG: NotificationConfig = {
   ntfySubscribeToken: '',
   ntfyUsername: '',
   ntfyPassword: '',
-  events: {
-    permissionRequest: true,
-    promptRequest: true,
-    runCompleted: true,
-    runFailed: true,
-    backgroundPermission: true,
-    processLeak: true,
-  },
+  eventAllowlist: [],
+  eventDenylist: [],
 };

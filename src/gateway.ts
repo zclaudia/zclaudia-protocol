@@ -4,6 +4,12 @@
  * The gateway is a relay and should not depend on app-specific client/server
  * message unions. Those embedded payloads stay opaque at this boundary.
  */
+import type {
+  GatewayNamespace,
+  NamespaceProtocolVersion,
+  OpaquePayload,
+} from './core.js';
+import type { GatewayNotificationEvent } from './notifications.js';
 
 // ============================================================================
 // Core Types
@@ -16,7 +22,11 @@ export type BackendId = string;
 export type Epoch = number;
 export type Offset = number;
 export type Seq = number;
-export type GatewayOpaqueMessage = unknown;
+export type GatewayOpaqueMessage = OpaquePayload;
+
+export { GatewayNamespace, NamespaceProtocolVersion } from './core.js';
+
+export const GATEWAY_PROTOCOL_VERSION = 3 as const;
 
 // ============================================================================
 // Peer Handshake Protocol
@@ -25,6 +35,9 @@ export type GatewayOpaqueMessage = unknown;
 export interface PeerHelloMessage {
   type: 'peer_hello';
   protocolVersion: ProtocolVersion;
+  namespace: GatewayNamespace;
+  clientProtocolVersion: NamespaceProtocolVersion;
+  minBackendProtocolVersion?: NamespaceProtocolVersion;
   peerType: 'client-only' | 'client+backend';
   gatewaySecret: string;
   identity: {
@@ -36,6 +49,8 @@ export interface PeerHelloMessage {
   backend?: {
     visible: boolean;
     capabilities: string[];
+    backendProtocolVersion: NamespaceProtocolVersion;
+    minClientProtocolVersion?: NamespaceProtocolVersion;
   };
 }
 
@@ -61,6 +76,7 @@ export interface RegistrySyncPayload {
 // ============================================================================
 
 export interface BackendPresence {
+  namespace: GatewayNamespace;
   backendId: BackendId;
   instanceId: string;
   deviceId: string;
@@ -68,6 +84,8 @@ export interface BackendPresence {
   channel: string;
   visible: boolean;
   capabilities: string[];
+  backendProtocolVersion: NamespaceProtocolVersion;
+  minClientProtocolVersion?: NamespaceProtocolVersion;
   epoch: Epoch;
   connectedAt: number;
   lastSeenAt: number;
@@ -100,50 +118,44 @@ export interface HeartbeatAckMessage {
 }
 
 // ============================================================================
-// Backend Data Protocol (sessions + projects metadata)
+// Backend Resource Protocol
 // ============================================================================
 
-export type RunStatus = 'idle' | 'running' | 'waiting' | 'failed' | 'completed';
-
-export interface SessionItem {
-  sessionId: string;
-  projectId?: string;
-  title?: string;
-  createdAt: number;
-  updatedAt: number;
-  lastMessageAt?: number;
-  lastMessagePreview?: string;
-  runStatus: RunStatus;
-  archived?: boolean;
+export interface GatewayResourceEnvelope {
+  resourceType: string;
+  resourceId: string;
+  resource: GatewayOpaqueMessage;
+  updatedAt?: number;
+  metadata?: Record<string, GatewayOpaqueMessage>;
 }
 
-export interface ProjectItem {
-  projectId: string;
-  name: string;
-  createdAt: number;
-  updatedAt: number;
-}
-
-/** Backend -> Gateway -> Client: full data snapshot. */
-export interface BackendDataSnapshotMessage {
-  type: 'backend_data_snapshot';
+/** Backend -> Gateway -> Client: full resource snapshot. */
+export interface BackendResourceSnapshotMessage {
+  type: 'backend_resource_snapshot';
+  namespace?: GatewayNamespace;
   /** Set by gateway when relaying to clients. Absent when backend sends to gateway. */
   backendId?: BackendId;
-  sessions: SessionItem[];
-  projects: ProjectItem[];
+  resources: GatewayResourceEnvelope[];
 }
 
 /** Backend -> Gateway -> Client: incremental data event. */
-export type BackendDataEventMessage =
-  | { type: 'backend_data_event'; backendId?: BackendId; op: 'session_upsert'; item: SessionItem }
-  | { type: 'backend_data_event'; backendId?: BackendId; op: 'session_remove'; sessionId: string }
-  | { type: 'backend_data_event'; backendId?: BackendId; op: 'project_upsert'; item: ProjectItem }
-  | { type: 'backend_data_event'; backendId?: BackendId; op: 'project_remove'; projectId: string };
+export interface BackendResourceEventMessage {
+  type: 'backend_resource_event';
+  namespace?: GatewayNamespace;
+  backendId?: BackendId;
+  op: 'upsert' | 'remove';
+  resourceType: string;
+  resourceId: string;
+  resource?: GatewayOpaqueMessage;
+  updatedAt?: number;
+  metadata?: Record<string, GatewayOpaqueMessage>;
+}
 
-/** Client -> Gateway -> Backend: request immediate data snapshot. */
-export interface RequestBackendDataSnapshotMessage {
-  type: 'request_backend_data_snapshot';
+/** Client -> Gateway -> Backend: request immediate resource snapshot. */
+export interface RequestBackendResourceSnapshotMessage {
+  type: 'request_backend_resource_snapshot';
   backendId: BackendId;
+  resourceTypes?: string[];
   /** Optional requesting subscriber so the backend can send immediate state only to that peer. */
   targetPeerSessionId?: string;
 }
@@ -199,73 +211,57 @@ export interface SubscriberDisconnectedMessage {
 }
 
 // ============================================================================
-// Session Content Protocol
+// Backend Stream and Content Patch Protocol
 // ============================================================================
 
-export interface SessionMessage {
-  messageId: string;
-  sessionId: string;
-  offset: Offset;
-  role: 'user' | 'assistant' | 'system' | 'tool';
-  createdAt: number;
-  content: unknown;
-}
-
 export interface StreamDemandMessage {
-  type: 'stream_demand';
+  type: 'backend_stream_demand';
   active: boolean;
 }
 
-export type RunStreamEventType =
-  | 'run_started'
-  | 'run_delta'
-  | 'tool_call_started'
-  | 'tool_call_delta'
-  | 'tool_call_completed'
-  | 'run_completed'
-  | 'run_failed';
-
-/** Backend -> Gateway: run stream event from backend, gateway adds backendId when forwarding. */
-export interface BackendRunStreamEvent {
-  type: 'run_stream_event';
-  eventType: RunStreamEventType;
-  sessionId: string;
-  runId: string;
+/** Backend -> Gateway: stream event from backend, gateway adds backendId when forwarding. */
+export interface BackendStreamEvent {
+  type: 'backend_stream_event';
+  streamId: string;
+  eventName: string;
   seq: Seq;
-  payload: unknown;
+  channel?: string;
+  payload: GatewayOpaqueMessage;
+  metadata?: Record<string, GatewayOpaqueMessage>;
 }
 
-/** Gateway -> Client: run stream event forwarded to subscribers. */
-export interface RunStreamEvent {
-  type: 'run_stream_event';
-  eventType: RunStreamEventType;
+/** Gateway -> Client: stream event forwarded to subscribers. */
+export interface GatewayStreamEvent {
+  type: 'backend_stream_event';
   backendId: BackendId;
-  sessionId: string;
-  runId: string;
+  streamId: string;
+  eventName: string;
   seq: Seq;
-  payload: unknown;
+  channel?: string;
+  payload: GatewayOpaqueMessage;
+  metadata?: Record<string, GatewayOpaqueMessage>;
 }
 
-export interface CatchUpSessionContentMessage {
-  type: 'catch_up_session_content';
+export interface CatchUpContentMessage {
+  type: 'catch_up_content';
   backendId: BackendId;
-  sessionId: string;
+  contentStreamId: string;
   afterOffset: Offset;
 }
 
-export interface SessionContentPatchMessage {
-  type: 'session_content_patch';
+export interface ContentPatchMessage {
+  type: 'content_patch';
   backendId: BackendId;
-  sessionId: string;
-  messages: SessionMessage[];
+  contentStreamId: string;
+  patches: GatewayOpaqueMessage[];
   latestOffset: Offset;
-  runStatus?: RunStatus;
+  metadata?: Record<string, GatewayOpaqueMessage>;
 }
 
-export interface SessionContentPatchErrorMessage {
-  type: 'session_content_patch_error';
+export interface ContentPatchErrorMessage {
+  type: 'content_patch_error';
   backendId: BackendId;
-  sessionId: string;
+  contentStreamId: string;
   afterOffset: Offset;
   message: string;
 }
@@ -278,9 +274,11 @@ export type GatewayErrorCode =
   | 'INVALID_MESSAGE'
   | 'PROTOCOL_VERSION_MISMATCH'
   | 'UNAUTHORIZED'
+  | 'FORBIDDEN_NAMESPACE'
+  | 'INCOMPATIBLE_PROTOCOL_VERSION'
   | 'BACKEND_OFFLINE'
   | 'BACKEND_NOT_SUBSCRIBED'
-  | 'SESSION_NOT_FOUND'
+  | 'RESOURCE_NOT_FOUND'
   | 'STREAM_GAP_DETECTED'
   | 'RATE_LIMITED';
 
@@ -300,24 +298,10 @@ export interface GatewayErrorMessage {
 // Push Notification (backend -> gateway only)
 // ============================================================================
 
-export type PushNotificationEventType =
-  | 'permission_request'
-  | 'interaction_prompt'
-  | 'run_completed'
-  | 'run_failed'
-  | 'background_permission'
-  | 'process_leak';
-
 export interface PushNotificationRequestMessage {
   type: 'push_notification_request';
-  event: {
-    type: PushNotificationEventType;
-    title: string;
-    body: string;
-    priority?: 'urgent' | 'high' | 'default' | 'low' | 'min';
-    tags?: string[];
-    clickUrl?: string;
-  };
+  namespace?: GatewayNamespace;
+  event: GatewayNotificationEvent;
 }
 
 // ============================================================================
@@ -328,10 +312,12 @@ export type BackendToGatewayMessage =
   | PeerHelloMessage
   | RequestRegistrySnapshotMessage
   | BackendHeartbeatMessage
-  | BackendDataSnapshotMessage
-  | BackendDataEventMessage
+  | BackendResourceSnapshotMessage
+  | BackendResourceEventMessage
   | BackendServerMessage
-  | BackendRunStreamEvent
+  | BackendStreamEvent
+  | ContentPatchMessage
+  | ContentPatchErrorMessage
   | PushNotificationRequestMessage;
 
 export type GatewayToBackendMessage =
@@ -340,7 +326,7 @@ export type GatewayToBackendMessage =
   | HeartbeatAckMessage
   | StreamDemandMessage
   | BackendClientMessage
-  | RequestBackendDataSnapshotMessage
+  | RequestBackendResourceSnapshotMessage
   | SubscriberDisconnectedMessage
   | GatewayErrorMessage;
 
@@ -350,8 +336,8 @@ export type ClientToGatewayMessage =
   | SubscribeBackendMessage
   | UnsubscribeBackendMessage
   | BackendClientMessage
-  | RequestBackendDataSnapshotMessage
-  | CatchUpSessionContentMessage;
+  | RequestBackendResourceSnapshotMessage
+  | CatchUpContentMessage;
 
 // ============================================================================
 // HTTP Proxy Protocol (shared between gateway server and backend)

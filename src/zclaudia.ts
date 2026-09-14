@@ -1,5 +1,7 @@
-import type { AgentRunStatus } from './agent.js';
 import type { OpaquePayload } from './core.js';
+
+/** Lifecycle of a ZClaudia run as published in session resources. */
+export type RunStatus = 'idle' | 'running' | 'waiting' | 'failed' | 'completed';
 
 export interface ZClaudiaSessionResource {
   sessionId: string;
@@ -9,7 +11,7 @@ export interface ZClaudiaSessionResource {
   updatedAt: number;
   lastMessageAt?: number;
   lastMessagePreview?: string;
-  runStatus: AgentRunStatus;
+  runStatus: RunStatus;
   archived?: boolean;
 }
 
@@ -32,4 +34,3 @@ export interface ZClaudiaSessionMessage {
 export type SessionItem = ZClaudiaSessionResource;
 export type ProjectItem = ZClaudiaProjectResource;
 export type SessionMessage = ZClaudiaSessionMessage;
-export type RunStatus = AgentRunStatus;

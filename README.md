@@ -1,7 +1,7 @@
 # @zclaudia/protocol
 
 ZClaudia business contracts shared across desktop, server, and SDKs: business
-resource models, sync payloads, event semantics, and this application's
+resource models, sync payloads, notification semantics, and this application's
 transport binding conventions. Gateway transport contracts (handshake,
 control plane, channels, topics, HTTP frames) live in the independent
 [`@zclaudia/gateway-protocol`](https://www.npmjs.com/package/@zclaudia/gateway-protocol)
@@ -20,11 +20,19 @@ package — the two protocol packages do not depend on each other.
 - `@zclaudia/protocol/notifications` — application notification event
   semantics and user-facing config shape.
 - `@zclaudia/protocol/core` — opaque payload and envelope primitives.
-- `@zclaudia/protocol/gateway` — **frozen compatibility entry** for
-  pre-migration consumers; removal target 0.3.0. New code imports the
-  entries above (business) or `@zclaudia/gateway-protocol` (transport).
-- `@zclaudia/protocol/agent` — frozen legacy agent contracts without
-  consumers; removal target 0.3.0 (`RunStatus` lives in `/zclaudia`).
+
+## Migration notes for 0.3.0
+
+The frozen compatibility entries removed in 0.3.0, and where their content
+lives now:
+
+- `@zclaudia/protocol/gateway` — gateway transport contracts moved to
+  `@zclaudia/gateway-protocol` (protocol v4). The dead v3 wire names
+  (`subscribe_backend`, `http_proxy_*`, stream demand, the legacy HTTP proxy
+  frames, …) have no replacement: the v4 gateway never routed them.
+- `@zclaudia/protocol/agent` — the legacy agent runtime contracts had no
+  consumers; runtime interaction contracts live in plugin-sdk. The run
+  status set survives unchanged as `RunStatus` in `/zclaudia`.
 
 ## Install
 

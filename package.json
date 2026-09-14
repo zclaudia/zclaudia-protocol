@@ -1,7 +1,7 @@
 {
   "name": "@zclaudia/protocol",
-  "version": "0.2.1",
-  "description": "ZClaudia business contracts (resources, sync payloads, events, transport binding) and frozen gateway-compat declarations.",
+  "version": "0.3.0",
+  "description": "ZClaudia business contracts: resources, sync payloads, notification semantics, and transport binding conventions.",
   "license": "MIT",
   "type": "module",
   "main": "./dist/index.js",
@@ -29,10 +29,6 @@
       "types": "./dist/core.d.ts",
       "import": "./dist/core.js"
     },
-    "./gateway": {
-      "types": "./dist/gateway.d.ts",
-      "import": "./dist/gateway.js"
-    },
     "./sync": {
       "types": "./dist/sync.d.ts",
       "import": "./dist/sync.js"
@@ -40,10 +36,6 @@
     "./transport": {
       "types": "./dist/transport.d.ts",
       "import": "./dist/transport.js"
-    },
-    "./agent": {
-      "types": "./dist/agent.d.ts",
-      "import": "./dist/agent.js"
     },
     "./zclaudia": {
       "types": "./dist/zclaudia.d.ts",
